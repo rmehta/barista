@@ -6,7 +6,7 @@
 # Redis, Traefik), and the first bench + barista.localhost site.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/frappe/barista/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/rmehta/barista/main/install.sh | bash
 #   ./install.sh [--domain HOST] [--email ADDR] [--port-start N]
 #                [--interactive] [--dry-run]
 #                [--uninstall | --purge]
@@ -21,7 +21,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 
 BARISTA_HOME="${BARISTA_HOME:-$HOME/.barista}"
-BARISTA_REPO="${BARISTA_REPO:-https://github.com/frappe/barista}"
+BARISTA_REPO="${BARISTA_REPO:-https://github.com/rmehta/barista}"
 BARISTA_BRANCH="${BARISTA_BRANCH:-main}"
 BASE_IMAGE="${BASE_IMAGE:-ghcr.io/frappe/bench-base:python3.11-node20}"
 NETWORK="${NETWORK:-barista-net}"
