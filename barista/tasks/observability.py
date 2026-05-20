@@ -1,5 +1,5 @@
 """Periodic observability refresh tasks. Stubs in v0.1; the real
-collectors live in 07-observability.md and will be implemented as a
+collectors live in specs/07-observability.md and will be implemented as a
 follow-up."""
 
 import frappe
@@ -14,4 +14,4 @@ def refresh_error_snapshots() -> None:
     """
     if not frappe.db.exists("DocType", "Site"):
         return
-    # placeholder — see 07-observability.md
+    # placeholder — see specs/07-observability.md

@@ -4,7 +4,7 @@ A tiny privileged microservice that owns `/var/run/docker.sock` so
 that the Barista Frappe app doesn't have to. Barista calls this
 service over HTTP across the `barista-net` Docker network.
 
-See [../09-docker-manager.md](../09-docker-manager.md) for the spec.
+See [../specs/09-docker-manager.md](../specs/09-docker-manager.md) for the spec.
 
 ## Run
 

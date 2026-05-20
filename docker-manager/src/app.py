@@ -11,7 +11,7 @@ Docker. Access is gated by:
      subnets in `BARISTA_DM_ALLOWED_CIDRS` (defaults to the
      `barista-net` subnet looked up at boot).
 
-See ../09-docker-manager.md for the full spec.
+See ../specs/09-docker-manager.md for the full spec.
 """
 
 from __future__ import annotations
