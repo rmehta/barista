@@ -1,0 +1,47 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-05-20 10:00:00",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "target_type", "target", "action", "status",
+  "column_break_1", "triggered_by", "triggered_at", "duration_s",
+  "section_output", "log", "error"
+ ],
+ "fields": [
+  {"fieldname": "target_type", "fieldtype": "Select", "label": "Target Type",
+   "options": "Bench Host\nSite\nBench Build", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "target", "fieldtype": "Dynamic Link", "label": "Target", "options": "target_type", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "action", "fieldtype": "Select", "label": "Action",
+   "options": "Create\nStart\nStop\nRestart\nDestroy\nInstall App\nUninstall App\nMigrate\nBackup\nRestore\nUpdate",
+   "reqd": 1, "in_list_view": 1},
+  {"fieldname": "status", "fieldtype": "Select", "label": "Status",
+   "options": "Queued\nRunning\nSuccess\nFailure\nCancelled",
+   "default": "Queued", "in_list_view": 1},
+  {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+  {"fieldname": "triggered_by", "fieldtype": "Link", "label": "Triggered By", "options": "User"},
+  {"fieldname": "triggered_at", "fieldtype": "Datetime", "label": "Triggered At", "in_list_view": 1},
+  {"fieldname": "duration_s", "fieldtype": "Int", "label": "Duration (s)"},
+  {"fieldname": "section_output", "fieldtype": "Section Break", "label": "Output"},
+  {"fieldname": "log", "fieldtype": "Code", "label": "Log"},
+  {"fieldname": "error", "fieldtype": "Text", "label": "Error"}
+ ],
+ "in_create": 1,
+ "links": [],
+ "modified": "2026-05-20 10:00:00",
+ "modified_by": "Administrator",
+ "module": "Barista",
+ "name": "Bench Action",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "Barista Admin", "read": 1, "report": 1, "export": 1},
+  {"role": "Barista Editor", "read": 1},
+  {"role": "Barista Viewer", "read": 1},
+  {"role": "System Manager", "read": 1, "report": 1, "export": 1}
+ ],
+ "sort_field": "triggered_at",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

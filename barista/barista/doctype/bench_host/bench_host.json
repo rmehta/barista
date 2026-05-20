@@ -1,0 +1,50 @@
+{
+ "actions": [],
+ "autoname": "field:bench_name",
+ "creation": "2026-05-20 10:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "bench_name", "spec", "status", "column_break_1", "current_build", "container_id",
+  "section_runtime", "http_port", "ssh_port", "started_at", "created_on",
+  "section_limits", "cpu_quota", "mem_limit_mb", "host_path"
+ ],
+ "fields": [
+  {"fieldname": "bench_name", "fieldtype": "Data", "label": "Bench Name", "reqd": 1, "unique": 1, "in_list_view": 1},
+  {"fieldname": "spec", "fieldtype": "Link", "label": "Spec", "options": "Bench Spec", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "status", "fieldtype": "Select", "label": "Status",
+   "options": "Pending\nBuilding\nStarting\nRunning\nStopped\nErrored",
+   "default": "Pending", "in_list_view": 1},
+  {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+  {"fieldname": "current_build", "fieldtype": "Link", "label": "Current Build", "options": "Bench Build", "read_only": 1},
+  {"fieldname": "container_id", "fieldtype": "Data", "label": "Container ID", "read_only": 1},
+  {"fieldname": "section_runtime", "fieldtype": "Section Break", "label": "Runtime"},
+  {"fieldname": "http_port", "fieldtype": "Int", "label": "HTTP Port"},
+  {"fieldname": "ssh_port", "fieldtype": "Int", "label": "SSH Port"},
+  {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At", "read_only": 1},
+  {"fieldname": "created_on", "fieldtype": "Datetime", "label": "Created On", "read_only": 1},
+  {"fieldname": "section_limits", "fieldtype": "Section Break", "label": "Limits"},
+  {"fieldname": "cpu_quota", "fieldtype": "Float", "label": "CPU Cores (0 = unlimited)", "default": "0"},
+  {"fieldname": "mem_limit_mb", "fieldtype": "Int", "label": "Memory (MB, 0 = unlimited)", "default": "0"},
+  {"fieldname": "host_path", "fieldtype": "Data", "label": "Host Path"}
+ ],
+ "links": [
+  {"link_doctype": "Site", "link_fieldname": "bench"},
+  {"link_doctype": "Bench Build", "link_fieldname": "bench_host"}
+ ],
+ "modified": "2026-05-20 10:00:00",
+ "modified_by": "Administrator",
+ "module": "Barista",
+ "name": "Bench Host",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "Barista Admin", "read": 1, "write": 1, "create": 1, "delete": 1},
+  {"role": "Barista Editor", "read": 1},
+  {"role": "Barista Viewer", "read": 1},
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1}
+ ],
+ "sort_field": "bench_name",
+ "sort_order": "ASC",
+ "track_changes": 1
+}

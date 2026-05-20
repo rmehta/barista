@@ -1,0 +1,42 @@
+{
+ "actions": [],
+ "creation": "2026-05-20 10:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "section_docker", "docker_host", "http_port_range_start", "max_concurrent_builds",
+  "column_break_1", "default_python", "default_node",
+  "section_backups", "backup_retention_days",
+  "section_obs", "enable_web_analytics", "slow_query_threshold_ms", "binlog_enabled"
+ ],
+ "fields": [
+  {"fieldname": "section_docker", "fieldtype": "Section Break", "label": "Docker"},
+  {"fieldname": "docker_host", "fieldtype": "Data", "label": "Docker Host", "default": "unix:///var/run/docker.sock"},
+  {"fieldname": "http_port_range_start", "fieldtype": "Int", "label": "HTTP Port Range Start", "default": "18000"},
+  {"fieldname": "max_concurrent_builds", "fieldtype": "Int", "label": "Max Concurrent Builds", "default": "2"},
+  {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+  {"fieldname": "default_python", "fieldtype": "Select", "label": "Default Python", "options": "3.10\n3.11\n3.12", "default": "3.11"},
+  {"fieldname": "default_node", "fieldtype": "Select", "label": "Default Node", "options": "18\n20\n22", "default": "20"},
+  {"fieldname": "section_backups", "fieldtype": "Section Break", "label": "Backups"},
+  {"fieldname": "backup_retention_days", "fieldtype": "Int", "label": "Backup Retention (days)", "default": "14"},
+  {"fieldname": "section_obs", "fieldtype": "Section Break", "label": "Observability"},
+  {"fieldname": "enable_web_analytics", "fieldtype": "Check", "label": "Enable Web Analytics", "default": "1"},
+  {"fieldname": "slow_query_threshold_ms", "fieldtype": "Int", "label": "Slow Query Threshold (ms)", "default": "500"},
+  {"fieldname": "binlog_enabled", "fieldtype": "Check", "label": "Bin Log Enabled", "default": "0"}
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-20 10:00:00",
+ "modified_by": "Administrator",
+ "module": "Barista",
+ "name": "Barista Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "Barista Admin", "read": 1, "write": 1},
+  {"role": "System Manager", "read": 1, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

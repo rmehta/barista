@@ -1,0 +1,16 @@
+*.pyc
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Frontend
+dashboard/node_modules/
+dashboard/dist/
+barista/public/dist/
+
+# Local state
+*.log
+.DS_Store

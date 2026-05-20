@@ -3,11 +3,10 @@ unsafe asks even if the caller (Barista) sends them by accident."""
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
-from werkzeug.exceptions import BadRequest
 
+from werkzeug.exceptions import BadRequest
 
 _NAME_RX = re.compile(r"^[a-z][a-z0-9-]{1,30}$")
 
@@ -43,8 +42,8 @@ def validate_host_path(path: str, data_root: str) -> str:
     root = Path(data_root).resolve()
     try:
         resolved.relative_to(root)
-    except ValueError:
-        raise BadRequest(f"host_path {path!r} is outside data_root {data_root!r}")
+    except ValueError as e:
+        raise BadRequest(f"host_path {path!r} is outside data_root {data_root!r}") from e
     if not resolved.is_dir():
         raise BadRequest(f"host_path {path!r} does not exist or is not a directory")
     return str(resolved)
@@ -53,8 +52,8 @@ def validate_host_path(path: str, data_root: str) -> str:
 def validate_port(port) -> int:
     try:
         p = int(port)
-    except (TypeError, ValueError):
-        raise BadRequest(f"invalid port: {port!r}")
+    except (TypeError, ValueError) as e:
+        raise BadRequest(f"invalid port: {port!r}") from e
     if not (1024 <= p <= 65535):
         raise BadRequest(f"port out of range: {p}")
     return p

@@ -1,0 +1,33 @@
+{
+ "actions": [],
+ "autoname": "field:app_name",
+ "creation": "2026-05-20 10:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["app_name", "title", "repository_url", "default_branch", "is_private", "description", "icon_url"],
+ "fields": [
+  {"fieldname": "app_name", "fieldtype": "Data", "label": "App Name", "reqd": 1, "unique": 1, "in_list_view": 1},
+  {"fieldname": "title", "fieldtype": "Data", "label": "Title", "in_list_view": 1},
+  {"fieldname": "repository_url", "fieldtype": "Data", "label": "Repository URL", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "default_branch", "fieldtype": "Data", "label": "Default Branch", "default": "version-15"},
+  {"fieldname": "is_private", "fieldtype": "Check", "label": "Private", "default": "0"},
+  {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"},
+  {"fieldname": "icon_url", "fieldtype": "Data", "label": "Icon URL"}
+ ],
+ "links": [],
+ "modified": "2026-05-20 10:00:00",
+ "modified_by": "Administrator",
+ "module": "Barista",
+ "name": "Bench App",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "Barista Admin", "read": 1, "write": 1, "create": 1, "delete": 1},
+  {"role": "Barista Editor", "read": 1},
+  {"role": "Barista Viewer", "read": 1},
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1}
+ ],
+ "sort_field": "app_name",
+ "sort_order": "ASC",
+ "track_changes": 1
+}

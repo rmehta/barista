@@ -1,0 +1,46 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-05-20 10:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "spec", "bench_host", "status", "column_break_1",
+  "image_tag", "duration_s", "started_at", "finished_at",
+  "section_artifacts", "dockerfile", "build_log",
+  "section_meta", "triggered_by"
+ ],
+ "fields": [
+  {"fieldname": "spec", "fieldtype": "Link", "label": "Spec", "options": "Bench Spec", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "bench_host", "fieldtype": "Link", "label": "Bench Host", "options": "Bench Host"},
+  {"fieldname": "status", "fieldtype": "Select", "label": "Status",
+   "options": "Pending\nRunning\nSuccess\nFailure\nCancelled",
+   "default": "Pending", "in_list_view": 1},
+  {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+  {"fieldname": "image_tag", "fieldtype": "Data", "label": "Image Tag", "in_list_view": 1},
+  {"fieldname": "duration_s", "fieldtype": "Int", "label": "Duration (s)"},
+  {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At"},
+  {"fieldname": "finished_at", "fieldtype": "Datetime", "label": "Finished At"},
+  {"fieldname": "section_artifacts", "fieldtype": "Section Break", "label": "Artifacts"},
+  {"fieldname": "dockerfile", "fieldtype": "Code", "label": "Dockerfile", "options": "Dockerfile"},
+  {"fieldname": "build_log", "fieldtype": "Code", "label": "Build Log"},
+  {"fieldname": "section_meta", "fieldtype": "Section Break", "label": "Meta"},
+  {"fieldname": "triggered_by", "fieldtype": "Link", "label": "Triggered By", "options": "User"}
+ ],
+ "links": [],
+ "modified": "2026-05-20 10:00:00",
+ "modified_by": "Administrator",
+ "module": "Barista",
+ "name": "Bench Build",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "Barista Admin", "read": 1, "write": 1, "create": 1, "delete": 1},
+  {"role": "Barista Editor", "read": 1},
+  {"role": "Barista Viewer", "read": 1},
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

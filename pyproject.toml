@@ -1,0 +1,25 @@
+[project]
+name = "barista"
+authors = [{ name = "Frappe Technologies Pvt. Ltd.", email = "developers@frappe.io" }]
+description = "Manage local Frappe benches and sites via a Frappe-UI dashboard"
+requires-python = ">=3.10"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = [
+    "requests>=2.31",
+]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.module]
+name = "barista"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501", "B008"]

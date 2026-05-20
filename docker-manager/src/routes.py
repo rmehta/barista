@@ -12,7 +12,6 @@ import tempfile
 import yaml
 from flask import Blueprint, abort, current_app, jsonify, request
 
-
 bp = Blueprint("routes", __name__)
 
 
@@ -24,7 +23,6 @@ def replace_routes():
         abort(400, description="routes must be a list")
 
     http_routers, http_services = {}, {}
-    tls_routers = {}
 
     for r in routes:
         name = r.get("service")

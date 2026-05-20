@@ -1,0 +1,42 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-05-20 10:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "site", "type", "status",
+  "column_break_1", "with_files", "size_mb",
+  "section_files", "path",
+  "section_timing", "started_at", "finished_at"
+ ],
+ "fields": [
+  {"fieldname": "site", "fieldtype": "Link", "label": "Site", "options": "Site", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "type", "fieldtype": "Select", "label": "Type", "options": "Manual\nScheduled\nPre-migration", "default": "Manual", "in_list_view": 1},
+  {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Running\nSuccess\nFailure", "default": "Running", "in_list_view": 1},
+  {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+  {"fieldname": "with_files", "fieldtype": "Check", "label": "Include Files", "default": "1"},
+  {"fieldname": "size_mb", "fieldtype": "Float", "label": "Size (MB)", "read_only": 1, "in_list_view": 1},
+  {"fieldname": "section_files", "fieldtype": "Section Break", "label": "Storage"},
+  {"fieldname": "path", "fieldtype": "Data", "label": "Path"},
+  {"fieldname": "section_timing", "fieldtype": "Section Break", "label": "Timing"},
+  {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At"},
+  {"fieldname": "finished_at", "fieldtype": "Datetime", "label": "Finished At"}
+ ],
+ "links": [],
+ "modified": "2026-05-20 10:00:00",
+ "modified_by": "Administrator",
+ "module": "Barista",
+ "name": "Site Backup",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "Barista Admin", "read": 1, "write": 1, "create": 1, "delete": 1},
+  {"role": "Barista Editor", "read": 1, "write": 1, "create": 1, "delete": 1},
+  {"role": "Barista Viewer", "read": 1},
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

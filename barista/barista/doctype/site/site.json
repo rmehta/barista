@@ -1,0 +1,50 @@
+{
+ "actions": [],
+ "autoname": "field:site_name",
+ "creation": "2026-05-20 10:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "site_name", "bench", "status", "is_control_plane",
+  "column_break_1", "admin_password", "service_token", "db_name",
+  "section_apps", "installed_apps",
+  "section_backups", "backup_schedule",
+  "section_meta", "created_on"
+ ],
+ "fields": [
+  {"fieldname": "site_name", "fieldtype": "Data", "label": "Site Name", "reqd": 1, "unique": 1, "in_list_view": 1},
+  {"fieldname": "bench", "fieldtype": "Link", "label": "Bench", "options": "Bench Host", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "status", "fieldtype": "Select", "label": "Status",
+   "options": "Pending\nActive\nMigrating\nBroken\nArchived",
+   "default": "Pending", "in_list_view": 1},
+  {"fieldname": "is_control_plane", "fieldtype": "Check", "label": "Control Plane", "read_only": 1, "default": "0"},
+  {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+  {"fieldname": "admin_password", "fieldtype": "Password", "label": "Admin Password"},
+  {"fieldname": "service_token", "fieldtype": "Password", "label": "Service Token"},
+  {"fieldname": "db_name", "fieldtype": "Data", "label": "DB Name", "read_only": 1},
+  {"fieldname": "section_apps", "fieldtype": "Section Break", "label": "Apps"},
+  {"fieldname": "installed_apps", "fieldtype": "Table", "label": "Installed Apps", "options": "Site App"},
+  {"fieldname": "section_backups", "fieldtype": "Section Break", "label": "Backups"},
+  {"fieldname": "backup_schedule", "fieldtype": "Select", "label": "Backup Schedule", "options": "None\nDaily\nWeekly", "default": "Daily"},
+  {"fieldname": "section_meta", "fieldtype": "Section Break", "label": "Meta"},
+  {"fieldname": "created_on", "fieldtype": "Datetime", "label": "Created On", "read_only": 1}
+ ],
+ "links": [
+  {"link_doctype": "Site Backup", "link_fieldname": "site"}
+ ],
+ "modified": "2026-05-20 10:00:00",
+ "modified_by": "Administrator",
+ "module": "Barista",
+ "name": "Site",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "Barista Admin", "read": 1, "write": 1, "create": 1, "delete": 1},
+  {"role": "Barista Editor", "read": 1, "write": 1, "create": 1, "delete": 1},
+  {"role": "Barista Viewer", "read": 1},
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1}
+ ],
+ "sort_field": "site_name",
+ "sort_order": "ASC",
+ "track_changes": 1
+}
