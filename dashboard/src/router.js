@@ -24,6 +24,11 @@ const routes = [
     component: () => import('./pages/SiteDetail.vue'),
     props: true,
   },
+  {
+    path: '/apps',
+    name: 'AppList',
+    component: () => import('./pages/AppList.vue'),
+  },
 ]
 
 export default createRouter({

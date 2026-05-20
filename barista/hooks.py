@@ -12,6 +12,10 @@ website_route_rules = [
     {"from_route": "/barista/<path:app_path>", "to_route": "barista"},
 ]
 
+# Install / migrate hooks
+after_install = "barista.install.after_install"
+after_migrate = "barista.install.after_migrate"
+
 # Boot info for the SPA
 extend_bootinfo = "barista.boot.extend"
 

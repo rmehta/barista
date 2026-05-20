@@ -34,6 +34,7 @@ import { RouterLink, RouterView } from 'vue-router'
 const nav = [
   { to: '/benches', label: 'Benches' },
   { to: '/sites', label: 'Sites' },
+  { to: '/apps', label: 'Apps' },
 ]
 
 const version = ref(window.frappe?.boot?.barista?.version || '0.0.1')

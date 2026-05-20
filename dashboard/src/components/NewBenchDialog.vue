@@ -51,7 +51,7 @@ const specOptions = computed(() =>
 
 watch(specOptions, (opts) => {
   if (!form.spec && opts.length) form.spec = opts[0].value
-})
+}, { immediate: true })
 
 const creating = createResource({
   url: 'frappe.client.insert',

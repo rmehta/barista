@@ -62,3 +62,17 @@ export function listSpecs() {
     auto: true,
   })
 }
+
+export function listApps() {
+  return createResource({
+    url: 'barista.api.apps.list_apps',
+    auto: true,
+  })
+}
+
+export function addCustomApp() {
+  return createResource({
+    url: 'barista.api.apps.add_custom_app',
+    method: 'POST',
+  })
+}

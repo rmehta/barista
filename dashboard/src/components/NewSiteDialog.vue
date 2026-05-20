@@ -33,6 +33,30 @@
           v-model="form.mariadb_root_password"
           description="From ~/.barista/.env on the host."
         />
+
+        <div data-test="apps-section">
+          <label class="text-sm font-medium text-gray-700">Apps to install</label>
+          <p class="text-xs text-gray-500 mb-2">
+            Frappe is installed by default. Pick any additional apps.
+          </p>
+          <div v-if="apps.loading" class="text-xs text-gray-500">Loading catalog…</div>
+          <div v-else class="grid grid-cols-2 gap-1 max-h-48 overflow-auto">
+            <label
+              v-for="app in installableApps"
+              :key="app.app_name"
+              class="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-gray-50"
+            >
+              <input
+                type="checkbox"
+                :value="app.app_name"
+                v-model="form.apps"
+              />
+              <span>{{ app.title || app.app_name }}</span>
+              <span v-if="!app.is_first_party" class="text-xs text-gray-400">(custom)</span>
+            </label>
+          </div>
+        </div>
+
         <ErrorMessage v-if="creating.error" :message="creating.error.message || String(creating.error)" />
       </div>
     </template>
@@ -41,8 +65,8 @@
 
 <script setup>
 import { computed, reactive, watch } from 'vue'
-import { Dialog, FormControl, ErrorMessage, createResource } from 'frappe-ui'
-import { listBenches, siteAction } from '../lib/api'
+import { Dialog, FormControl, ErrorMessage } from 'frappe-ui'
+import { listBenches, listApps, siteAction } from '../lib/api'
 
 const props = defineProps({ modelValue: Boolean, preselectedBench: String })
 const emit  = defineEmits(['update:modelValue', 'created'])
@@ -57,30 +81,35 @@ const form = reactive({
   bench: props.preselectedBench || '',
   admin_password: '',
   mariadb_root_password: '',
+  apps: [],
 })
 
 const benches = listBenches()
+const apps = listApps()
+
 const benchOptions = computed(() =>
   (benches.data || [])
     .filter((b) => b.status === 'Running')
     .map((b) => ({ label: b.bench_name, value: b.name }))
 )
 
+const installableApps = computed(() =>
+  (apps.data || []).filter((a) => a.app_name !== 'frappe')
+)
+
 watch(benchOptions, (opts) => {
   if (!form.bench && opts.length) form.bench = opts[0].value
-})
+}, { immediate: true })
 
 const creating = siteAction('create')
-creating.onSuccess = () => {
-  emit('created')
-  close()
-}
+creating.onSuccess = () => { emit('created'); close() }
 
 function close() {
   show.value = false
   form.site_name = ''
   form.admin_password = ''
   form.mariadb_root_password = ''
+  form.apps = []
 }
 
 function submit() {
@@ -90,6 +119,9 @@ function submit() {
     site_name: form.site_name,
     admin_password: form.admin_password,
     mariadb_root_password: form.mariadb_root_password,
+    apps: form.apps,
   })
 }
+
+defineExpose({ form, submit })
 </script>

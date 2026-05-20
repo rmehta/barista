@@ -9,6 +9,19 @@ import frappe
 def after_install() -> None:
     _ensure_roles()
     _ensure_settings()
+    _seed_catalog()
+
+
+def after_migrate() -> None:
+    """Run on every `bench migrate` so the catalog picks up new apps."""
+    _ensure_roles()
+    _ensure_settings()
+    _seed_catalog()
+
+
+def _seed_catalog() -> None:
+    from . import catalog
+    catalog.seed()
 
 
 def _ensure_roles() -> None:
@@ -30,6 +43,7 @@ def register_control_plane() -> None:
     """
     _ensure_roles()
     _ensure_settings()
+    _seed_catalog()
 
     if not frappe.db.exists("Bench Spec", "barista-cp"):
         frappe.get_doc({
