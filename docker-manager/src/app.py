@@ -59,21 +59,31 @@ def create_app() -> Flask:
 
 
 def _load_allowed_cidrs() -> list[str]:
+    """Compute the source-IP allowlist.
+
+    Always includes loopback so the container's own healthcheck (and
+    `docker exec curl localhost:8080`) work — those are inside the
+    privilege boundary already, no security loss.
+
+    Adds the barista-net subnet on top so callers from the
+    control-plane bench container can reach us.
+
+    Overridable via BARISTA_DM_ALLOWED_CIDRS for tests / unusual
+    network topologies.
+    """
     env = os.environ.get("BARISTA_DM_ALLOWED_CIDRS", "").strip()
     if env:
         return [c.strip() for c in env.split(",") if c.strip()]
 
-    # discover our own bridge network's subnet
+    cidrs = ["127.0.0.0/8"]
     try:
         net = manager.client().networks.get(os.environ.get("NETWORK", "barista-net"))
-        cidrs = [c["Subnet"] for c in net.attrs["IPAM"]["Config"] if c.get("Subnet")]
-        if cidrs:
-            return cidrs
+        for c in net.attrs["IPAM"]["Config"]:
+            if c.get("Subnet"):
+                cidrs.append(c["Subnet"])
     except Exception as e:  # noqa: BLE001 — defensive at boot
-        logging.warning("could not auto-detect allowed CIDRs: %s", e)
-
-    # last resort: localhost only (Unix-socket / loopback bind)
-    return ["127.0.0.0/8"]
+        logging.warning("could not auto-detect docker subnet: %s", e)
+    return cidrs
 
 
 def _error_handler(e):
