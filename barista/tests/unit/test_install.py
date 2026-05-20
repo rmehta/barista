@@ -419,3 +419,59 @@ class TestStepOrder:
             "compose_up",
             "bootstrap_cp",
         ]
+
+
+# ===========================================================================
+# Bench (extracted from Installer)
+# ===========================================================================
+
+class TestBench:
+    def test_installer_owns_a_bench(self, installer):
+        assert isinstance(installer.bench, install.Bench)
+
+    def test_bench_dir_lives_under_barista_home(self, installer):
+        expected = installer.cfg.barista_home / "data" / "benches" / "default"
+        assert installer.bench.dir == expected
+
+    def test_bench_container_name_constant(self, installer):
+        assert installer.bench.name == install.BENCH_CONTAINER_NAME
+        assert installer.bench.name == "barista-bench-default"
+
+    def test_init_cmd_rewrites_venv_shebangs(self):
+        cmd = install.Bench._bench_init_cmd()
+        # the move target is /home/frappe/bench/env, so the sed must
+        # rewrite the throw-away /tmp/b/env path to that
+        assert "/tmp/b/env" in cmd
+        assert install.BENCH_RUNTIME_PATH + "/env" in cmd
+        assert "find /work/env/bin" in cmd
+        assert "/work/env/pyvenv.cfg" in cmd
+
+    def test_traefik_labels_off_with_no_traefik(self, tmp_path, quiet_logger,
+                                                  fake_docker):
+        cfg = install.Config(barista_home=tmp_path / "h", no_traefik=True)
+        bench = install.Bench(cfg, quiet_logger, fake_docker)
+        assert bench._traefik_labels(env={}) == []
+
+    def test_traefik_labels_add_le_when_email_and_real_domain(
+        self, tmp_path, quiet_logger, fake_docker,
+    ):
+        cfg = install.Config(
+            barista_home=tmp_path / "h",
+            email="ops@example.com",
+            domain="shop.example.com",
+        )
+        bench = install.Bench(cfg, quiet_logger, fake_docker)
+        labels = bench._traefik_labels(env={"BARISTA_DOMAIN": "shop.example.com"})
+        assert any("certresolver=le" in l for l in labels)
+
+    def test_traefik_labels_skip_le_on_localhost(
+        self, tmp_path, quiet_logger, fake_docker,
+    ):
+        cfg = install.Config(
+            barista_home=tmp_path / "h",
+            email="ops@example.com",
+            domain="barista.localhost",
+        )
+        bench = install.Bench(cfg, quiet_logger, fake_docker)
+        labels = bench._traefik_labels(env={"BARISTA_DOMAIN": "barista.localhost"})
+        assert not any("certresolver" in l for l in labels)

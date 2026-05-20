@@ -23,9 +23,11 @@ method, which makes them easy to test in isolation.
 """
 
 from . import secrets  # noqa: F401 — exposed for monkeypatching in tests
+from .bench import Bench
 from .cli import build_install_steps, main
 from .config import Config
 from .constants import (
+    BENCH_CONTAINER_NAME,
     BENCH_INTERNAL_PORT,
     BENCH_RUNTIME_PATH,
     DEFAULTS_BASE_IMAGE,
@@ -46,8 +48,10 @@ from .secrets import random_hex
 from .templates import Templates
 
 __all__ = [
+    "BENCH_CONTAINER_NAME",
     "BENCH_INTERNAL_PORT",
     "BENCH_RUNTIME_PATH",
+    "Bench",
     "Config",
     "DEFAULTS_BASE_IMAGE",
     "DEFAULTS_BRANCH",

@@ -27,3 +27,6 @@ BENCH_HTTP_TIMEOUT_S = 120
 # shebangs are rewritten to this so they stay valid after the move
 # from the throw-away init container.
 BENCH_RUNTIME_PATH = "/home/frappe/bench"
+
+# --- container name for the control-plane bench.
+BENCH_CONTAINER_NAME = "barista-bench-default"
