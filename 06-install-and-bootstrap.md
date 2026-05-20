@@ -199,7 +199,7 @@ JSON
   # install barista the app
   docker exec -u frappe barista-bench-default bash -lc "
     cd /home/frappe/bench &&
-    bench get-app --branch main https://github.com/frappe/barista &&
+    bench get-app --branch main https://github.com/rmehta/barista &&
     bench new-site --no-mariadb-socket \
                    --admin-password '${BARISTA_ADMIN_PASSWORD}' \
                    --mariadb-root-password '${BARISTA_MARIADB_ROOT_PASSWORD}' \
