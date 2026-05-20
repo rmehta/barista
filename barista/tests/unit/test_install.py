@@ -462,7 +462,7 @@ class TestBench:
         )
         bench = install.Bench(cfg, quiet_logger, fake_docker)
         labels = bench._traefik_labels(env={"BARISTA_DOMAIN": "shop.example.com"})
-        assert any("certresolver=le" in l for l in labels)
+        assert any("certresolver=le" in lbl for lbl in labels)
 
     def test_traefik_labels_skip_le_on_localhost(
         self, tmp_path, quiet_logger, fake_docker,
@@ -474,4 +474,4 @@ class TestBench:
         )
         bench = install.Bench(cfg, quiet_logger, fake_docker)
         labels = bench._traefik_labels(env={"BARISTA_DOMAIN": "barista.localhost"})
-        assert not any("certresolver" in l for l in labels)
+        assert not any("certresolver" in lbl for lbl in labels)

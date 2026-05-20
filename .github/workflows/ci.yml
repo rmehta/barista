@@ -75,4 +75,4 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install ruff
-      - run: ruff check barista docker-manager install.py
+      - run: ruff check barista docker-manager installer install.py
