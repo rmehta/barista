@@ -46,7 +46,8 @@ __version__ = "0.1.0"
 
 DEFAULTS_REPO = "https://github.com/rmehta/barista"
 DEFAULTS_BRANCH = "main"
-DEFAULTS_BASE_IMAGE = "ghcr.io/frappe/bench-base:python3.11-node20"
+DEFAULTS_BASE_IMAGE = "frappe/bench:latest"
+BENCH_INTERNAL_PORT = 8000   # bench's default gunicorn port
 DEFAULTS_NETWORK = "barista-net"
 DEFAULTS_DOMAIN = "barista.localhost"
 DEFAULTS_PORT_START = 18000
@@ -655,7 +656,14 @@ class Installer:
     # ---------------- step 9: bootstrap_cp ----------------
 
     def bootstrap_cp(self) -> None:
-        """Create the control-plane bench container + site + Barista app."""
+        """Create the control-plane bench container + site + Barista app.
+
+        Two-phase: a keep-alive container is brought up first
+        (running `tail -f /dev/null`), then we docker-exec the
+        actual `bench get-app` / `bench new-site` calls into it.
+        Once setup is done we swap the container to `bench start`
+        so port 8000 is actually being served.
+        """
         bench_dir = self.cfg.barista_home / "data" / "benches" / "default"
         sites_dir = bench_dir / "sites"
         if not sites_dir.exists():
@@ -670,6 +678,8 @@ class Installer:
         if not self._site_present():
             self._new_site()
             self._register_control_plane()
+
+        self._ensure_serving(bench_dir)
 
     def _init_bench(self, bench_dir: Path) -> None:
         self.log.log("Initialising control-plane bench (one-time, ~3 min)")
@@ -707,14 +717,18 @@ class Installer:
             "--restart", "unless-stopped",
             "-v", f"{bench_dir}:/home/frappe/bench",
             "-v", f"{self.cfg.barista_home}/backups:/backups",
-            "-p", f"127.0.0.1:{port}:80",
+            "-p", f"127.0.0.1:{port}:{BENCH_INTERNAL_PORT}",
             "-e", "BARISTA_DOCKER_MANAGER_URL=http://barista-docker-manager:8080",
             "-e", f"BARISTA_DOCKER_MANAGER_TOKEN={token}",
             "--label", "barista.role=control-plane",
         ]
         for label in labels:
             argv += ["--label", label]
-        argv += [self.cfg.base_image, "/entrypoint.sh"]
+        # frappe/bench:latest has no entrypoint — keep the container
+        # alive with `tail -f`. install.sh then docker-exec's `bench
+        # get-app` and `bench new-site`; after that the container is
+        # restarted with `bench start` (handled in _start_serving).
+        argv += [self.cfg.base_image, "tail", "-f", "/dev/null"]
         self.docker.run(argv)
 
     def _control_plane_labels(self, env: dict[str, str]) -> list[str]:
@@ -724,7 +738,7 @@ class Installer:
         labels = [
             "traefik.enable=true",
             f"traefik.http.routers.barista.rule=Host(`{domain}`)",
-            "traefik.http.services.barista.loadbalancer.server.port=80",
+            f"traefik.http.services.barista.loadbalancer.server.port={BENCH_INTERNAL_PORT}",
         ]
         if self.cfg.email and not domain.endswith(".localhost"):
             labels += [
@@ -783,6 +797,66 @@ class Installer:
             f"cd /home/frappe/bench && bench use {domain} && "
             f"bench --site {domain} execute barista.install.register_control_plane",
         ])
+
+    def _ensure_serving(self, bench_dir: Path) -> None:
+        """Swap the container's command from `tail -f /dev/null` to
+        `bench start` so port 8000 is actually being served. Idempotent."""
+        if self._bench_is_serving():
+            return
+
+        self.log.log("Switching control-plane bench to `bench start`")
+        # remove the keep-alive container and re-run with the real command
+        self.docker.run(["docker", "rm", "-f", "barista-bench-default"],
+                        check=False)
+        self._run_control_plane_serving(bench_dir)
+        self._wait_for_bench_http()
+
+    def _bench_is_serving(self) -> bool:
+        """True if the running container's CMD includes `bench`."""
+        r = subprocess.run(
+            ["docker", "inspect", "--format", "{{json .Config.Cmd}}",
+             "barista-bench-default"],
+            capture_output=True, text=True, check=False,
+        )
+        return r.returncode == 0 and '"bench"' in (r.stdout or "")
+
+    def _run_control_plane_serving(self, bench_dir: Path) -> None:
+        env = _parse_env_file(self.cfg.env_file)
+        port = env.get("BARISTA_HTTP_PORT_RANGE_START", str(self.cfg.port_start))
+        token = env.get("BARISTA_DOCKER_MANAGER_TOKEN", "")
+        labels = self._control_plane_labels(env)
+        argv = [
+            "docker", "run", "-d", "--name", "barista-bench-default",
+            "--network", self.cfg.network,
+            "--restart", "unless-stopped",
+            "-v", f"{bench_dir}:/home/frappe/bench",
+            "-v", f"{self.cfg.barista_home}/backups:/backups",
+            "-p", f"127.0.0.1:{port}:{BENCH_INTERNAL_PORT}",
+            "-e", "BARISTA_DOCKER_MANAGER_URL=http://barista-docker-manager:8080",
+            "-e", f"BARISTA_DOCKER_MANAGER_TOKEN={token}",
+            "--label", "barista.role=control-plane",
+        ]
+        for label in labels:
+            argv += ["--label", label]
+        # `bench start` runs Frappe's dev stack via honcho (gunicorn,
+        # workers, schedule, socketio). External MariaDB + Redis are
+        # picked up from common_site_config.json.
+        argv += [self.cfg.base_image, "bash", "-lc",
+                 "cd /home/frappe/bench && exec bench start"]
+        self.docker.run(argv)
+
+    def _wait_for_bench_http(self, timeout_s: int = 120) -> None:
+        self.log.log(f"Waiting for bench to serve on :{BENCH_INTERNAL_PORT}")
+        deadline = time.time() + timeout_s
+        cmd = ["docker", "exec", "barista-bench-default", "curl", "-fsS",
+               f"http://localhost:{BENCH_INTERNAL_PORT}/api/method/ping"]
+        while time.time() < deadline:
+            r = subprocess.run(cmd, capture_output=True, check=False)
+            if r.returncode == 0:
+                self.log.ok("Bench is serving")
+                return
+            time.sleep(2)
+        raise InstallerError("bench did not start serving in time")
 
     # ---------------- summary ----------------
 
