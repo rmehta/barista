@@ -192,6 +192,18 @@ class TestTemplates:
         for name in ("mariadb", "redis", "docker-manager", "traefik"):
             assert f"  {name}:" in text
 
+    def test_compose_yml_marks_network_external(self):
+        """install.py pre-creates the network before `compose up`, so
+        compose has to treat it as external. Otherwise compose refuses
+        to adopt the un-labelled network and fails on Ubuntu/Docker
+        29+ with: 'network ... was found but has incorrect label
+        com.docker.compose.network'."""
+        text = install.Templates.compose_yml(
+            home="/x", network="barista-net", no_traefik=False
+        )
+        network_block = text.split("services:")[0]
+        assert "external: true" in network_block
+
     def test_compose_yml_omits_traefik_when_disabled(self):
         text = install.Templates.compose_yml(
             home="/x", network="barista-net", no_traefik=True

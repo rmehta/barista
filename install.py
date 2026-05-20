@@ -369,6 +369,10 @@ class Templates:
             "networks:",
             f"  {network}:",
             f"    name: {network}",
+            # Pre-created by install.py before `compose up`; compose
+            # must treat it as external or it will refuse to adopt the
+            # un-labelled network and fail.
+            "    external: true",
             "",
             "services:",
             "  mariadb:",
