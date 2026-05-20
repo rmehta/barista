@@ -692,14 +692,26 @@ class Installer:
             subprocess.run(["chown", "1000:1000", str(bench_dir)],
                            check=False)
         self.docker.run(["docker", "pull", self.cfg.base_image])
+
+        # `bench init` bakes absolute paths into the venv (shebangs in
+        # env/bin/*, executable= in env/pyvenv.cfg). We init at /tmp/b
+        # and move to /work, then the long-lived container mounts the
+        # same files at /home/frappe/bench — so we have to rewrite
+        # those paths or pip/etc are unrunnable.
+        init_cmd = (
+            "cd /tmp && bench init --skip-redis-config-generation "
+            "--frappe-branch version-15 b && "
+            "shopt -s dotglob && mv /tmp/b/* /work/ && "
+            "find /work/env/bin -type f -exec "
+            r"sed -i 's|/tmp/b/env|/home/frappe/bench/env|g' {} + && "
+            "sed -i 's|/tmp/b/env|/home/frappe/bench/env|g' /work/env/pyvenv.cfg"
+        )
         self.docker.run([
             "docker", "run", "--rm",
             "--network", self.cfg.network,
             "-v", f"{bench_dir}:/work",
             self.cfg.base_image,
-            "bash", "-lc",
-            "cd /tmp && bench init --skip-redis-config-generation "
-            "--frappe-branch version-15 b && shopt -s dotglob && mv /tmp/b/* /work/",
+            "bash", "-lc", init_cmd,
         ])
 
     def _write_common_site_config(self, sites_dir: Path) -> None:
