@@ -49,3 +49,10 @@ def test_entrypoint_handles_host_docker_socket_gid():
     assert "/var/run/docker.sock" in text
     assert "groupadd" in text
     assert "usermod" in text
+
+
+def test_requirements_include_gunicorn():
+    """entrypoint.sh execs gunicorn — it must be in requirements.txt
+    or the container crash-loops with 'gunicorn: command not found'."""
+    reqs = (ROOT / "requirements.txt").read_text().lower()
+    assert "gunicorn" in reqs
