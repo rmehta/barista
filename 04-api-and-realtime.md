@@ -41,6 +41,57 @@ The split is deliberate: `api/` is **stateless**, runs in the web
 worker, and never touches Docker. `tasks/` runs only on the
 `barista-agent` queue and holds every privileged call.
 
+Crucially, even the agent worker does not call the Docker SDK
+directly. It uses a thin client over HTTP:
+
+```python
+# barista/dm_client.py
+class DockerManager:
+    def __init__(self):
+        self.url   = frappe.conf.barista_docker_manager_url        # http://barista-docker-manager:8080
+        self.token = frappe.conf.barista_docker_manager_token
+
+    def _req(self, method, path, **kw):
+        r = requests.request(method, self.url + path,
+                             headers={"X-Auth-Token": self.token},
+                             timeout=kw.pop("timeout", 30), **kw)
+        r.raise_for_status()
+        return r.json() if r.content else None
+
+    def restart_bench(self, name):           return self._req("POST",   f"/v1/benches/{name}/restart")
+    def stop_bench(self, name, timeout=10):  return self._req("POST",   f"/v1/benches/{name}/stop", params={"timeout": timeout})
+    def create_bench(self, **body):          return self._req("POST",   "/v1/benches", json=body)
+    def destroy_bench(self, name, force=False): return self._req("DELETE", f"/v1/benches/{name}", params={"force": force})
+    def build(self, **body):                 return self._req("POST",   "/v1/builds", json=body)
+    def build_status(self, bid):             return self._req("GET",    f"/v1/builds/{bid}")
+    def build_log(self, bid, since=0):       return self._req("GET",    f"/v1/builds/{bid}/log", params={"since": since})
+    def stats(self, name):                   return self._req("GET",    f"/v1/benches/{name}/stats")
+    def exec_oneshot(self, name, cmd, **kw): return self._req("POST",   f"/v1/benches/{name}/exec", json={"cmd": cmd, **kw})
+    def terminal_token(self, name):          return self._req("POST",   "/v1/terminal-tokens", json={"bench": name})
+    def put_routes(self, routes):            return self._req("PUT",    "/v1/routes", json={"routes": routes})
+
+dm = DockerManager()
+```
+
+Tasks then read like:
+
+```python
+def restart(bench_action: str):
+    action = frappe.get_doc("Bench Action", bench_action)
+    action.status = "Running"; action.save()
+    try:
+        dm.restart_bench(action.target)
+        action.status = "Success"
+    except requests.HTTPError as e:
+        action.status = "Failure"
+        action.error = e.response.text
+    finally:
+        action.save()
+        frappe.publish_realtime(f"action:{action.name}", action.as_dict())
+```
+
+— short, mockable, no Docker import anywhere in the Frappe app.
+
 ---
 
 ## Whitelisted methods
@@ -196,14 +247,14 @@ def restart(bench: str):
 
 ```python
 # barista/tasks/bench.py
+from barista.dm_client import dm
+
 def restart(bench_action: str):
     action = frappe.get_doc("Bench Action", bench_action)
     action.status = "Running"
     action.save()
     try:
-        client = docker.from_env()
-        container = client.containers.get(f"barista-bench-{action.target}")
-        container.restart()
+        dm.restart_bench(action.target)
         action.status = "Success"
     except Exception as e:
         action.status = "Failure"

@@ -85,40 +85,64 @@ clear message; the UI turns that into a toast.
 
 ## Container isolation
 
-The control plane runs in a container with `/var/run/docker.sock`
-bind-mounted. This is famously dangerous: any process in that
-container can launch a privileged container and escape to the host.
-So:
+The control plane container **does not have `/var/run/docker.sock`**.
+Only the `barista-docker-manager` container does. This is Barista's
+single most important security decision: any process inside the
+Barista bench (including arbitrary user-installed Frappe apps and
+server scripts) is one network hop away from `docker-manager`, and
+must clear:
 
-- **Only the `barista-agent` worker process** has the socket
-  reachable. The web/gunicorn workers run in the same container but
-  cannot see the socket because `entrypoint.sh` sets
-  `DOCKER_HOST=unix:///var/run/docker.sock` only for the agent's
-  supervisord program. (The other programs don't inherit it; and
-  Docker-py raises if the env var is unset.)
-- The agent worker runs as a non-root user (`frappe`, uid 1000), so
-  even on the host its abilities are limited to whatever the Docker
-  group grants. On Linux we strongly recommend running Docker
-  **rootless** — `install.sh` detects rootless and prefers it.
+- the **token** check (`X-Auth-Token`), and
+- the **CIDR** check (source IP must be inside `barista-net`), and
+- the **policy** check (image allowlist, mount allowlist, capability
+  allowlist — see [09-docker-manager.md](09-docker-manager.md))
+
+before it can do anything. There is no path from "Frappe Python code"
+to "raw `dockerd` API call" — that's the whole point of the split.
+
+Other isolations still apply:
+
+- The agent worker is the *only* process in the control plane with
+  `BARISTA_DOCKER_MANAGER_URL`/`_TOKEN` env vars set. The web worker
+  and other queue workers don't have them, so the client raises on
+  init if called from the wrong place. Enforced at supervisord
+  program-env scope.
+- The `docker-manager` container runs as a non-root user (`manager`,
+  uid 1001). On Linux we strongly recommend Docker **rootless** —
+  `install.sh` detects rootless and prefers it.
 - Managed-bench containers run with `--security-opt no-new-privileges`,
-  `--cap-drop ALL` plus only the caps a bench needs
-  (`--cap-add CHOWN,SETUID,SETGID,DAC_OVERRIDE`), and `--read-only`
-  root FS with a tmpfs for `/tmp`. (Bind-mounted data dir is
-  writable; that's intentional.)
-- Managed benches **do not** have access to `docker.sock`. A
-  compromised user site cannot launch sibling containers.
+  `--cap-drop ALL` plus only the caps a bench needs (`CHOWN, SETUID,
+  SETGID, DAC_OVERRIDE`), and a tmpfs for `/tmp`. `docker-manager`'s
+  `policy.py` rejects any caller-supplied request that tries to relax
+  these.
+- Managed benches **do not** have access to `docker.sock`, the
+  manager's token, or the manager's IP allowlist (they're on
+  `barista-net` but the manager refuses requests from non-Barista
+  containers via an extra label check: requests must originate from a
+  container labelled `barista.role=control-plane` or
+  `barista.role=docker-manager-client`). A compromised user site
+  cannot launch sibling containers.
 
 ## Secret management
 
 Things Barista must store:
 
 - MariaDB root password (in `~/.barista/.env`, mode 600).
+- Docker-manager token (in `~/.barista/.env`, mode 600; mirrored
+  into both containers' env at compose time).
 - Per-site admin passwords (encrypted via Frappe's standard
   `frappe.utils.password.set_encrypted_password`).
 - Per-site `service_token` (same).
 - SSH private keys for private repos (same).
 - TLS certs (managed entirely by Traefik; on disk under
   `~/.barista/data/traefik`, root-owned).
+
+The docker-manager token can be rotated without downtime: write the
+new value to `.env`, `docker compose up -d` the manager (picks up new
+token), then `bench --site barista.localhost set-config
+barista_docker_manager_token <new>` on the control plane and restart
+the agent worker. Old token stops working as soon as the manager
+restarts.
 
 Things Barista must **not** store:
 

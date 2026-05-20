@@ -55,9 +55,12 @@ COPY --chown=frappe:frappe entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 ```
 
-Build is invoked via the **low-level Docker Python SDK** (`docker.from_env().images.build`),
-streamed line-by-line into `Bench Build.build_log` and broadcast via
-realtime so the UI can show it live.
+Build is invoked via `POST /v1/builds` on `barista-docker-manager`,
+which streams output back to the agent worker (HTTP cursor-paged log
+endpoint); the agent forwards it line-by-line into
+`Bench Build.build_log` and broadcasts via realtime so the UI can
+show it live. The control plane never calls the Docker SDK directly —
+see [09-docker-manager.md](09-docker-manager.md).
 
 Image tag: `barista/bench-<spec>:<git_sha_of_lockfile>`. The "lockfile"
 is the deterministic JSON dump of `{spec, apps[].source, apps[].branch,
@@ -87,7 +90,23 @@ container barista-bench-<name>
 
 ## Shared infrastructure containers
 
-Created once by `install.sh` and `docker compose up -d`.
+Created once by `install.sh` and `docker compose up -d`. They are
+**not** managed via docker-manager (which depends on them being up);
+they're plain `docker-compose` services with the standard lifecycle.
+
+### `barista-docker-manager`
+
+The privileged microservice. See [09-docker-manager.md](09-docker-manager.md).
+
+- Image: built locally from `barista/docker-manager/Dockerfile`.
+- Network: `barista-net` only; no published ports.
+- Volumes:
+  - `/var/run/docker.sock` (rw) — its reason to exist.
+  - `$BARISTA_HOME/data` → `/data` (rw) — needed so it can validate
+    bind-mount paths against the data root.
+  - `$BARISTA_HOME/config/traefik` → `/etc/traefik` (rw) — writes
+    `dynamic.yml` so Traefik picks up new sites.
+- Env: `BARISTA_DOCKER_MANAGER_TOKEN`, `NETWORK`, `BARISTA_DATA_ROOT`.
 
 ### `barista-mariadb`
 
@@ -146,7 +165,7 @@ to "Frappe writes a YAML file" workflows than Caddy's API mode.
 | `~/.barista/backups/`                       | `/backups` in control-plane bench     | rw   |
 | `~/.barista/config/mariadb/my.cnf`          | `/etc/mysql/conf.d/my.cnf`            | ro   |
 | `~/.barista/config/traefik/`                | `/etc/traefik/`                       | ro   |
-| `/var/run/docker.sock`                      | same path, in control-plane bench     | rw   |
+| `/var/run/docker.sock`                      | `barista-docker-manager` only         | rw   |
 
 All bench-bound paths are owned by uid 1000 (the `frappe` user inside
 the container). `install.sh` sets that up explicitly with `chown`.
@@ -154,16 +173,18 @@ the container). `install.sh` sets that up explicitly with `chown`.
 ## Lifecycle operations
 
 Each maps to a single method on `barista.tasks.bench` and a `Bench Action`.
+Every operation is implemented as one HTTP call to `barista-docker-manager`;
+the agent worker never touches the Docker SDK directly.
 
-| Op       | What happens |
-|----------|--------------|
-| Create   | Pull base image (if missing) → build per-spec image → `docker create` with bind mounts, port, limits → `docker start` → wait for nginx :80 to answer → write Site row for control-plane on first install, otherwise mark Running. |
-| Start    | `docker start`. Wait for healthcheck. |
-| Stop     | `docker stop` (10s grace). |
-| Restart  | `docker restart` if running, else Start. |
-| Rebuild  | New `Bench Build`. On success, swap `current_build`, recreate container with new image, restart sites' workers. Old image is kept; user can roll back from the UI. |
-| Destroy  | Refuse if non-archived sites exist. Stop, remove container, leave `host_path` intact (data is precious — user must `rm -rf` manually). |
-| Exec     | The "Open Terminal" feature pipes a `docker exec -it bench bash` through a websocket. |
+| Op       | What the agent worker does |
+|----------|----------------------------|
+| Create   | `POST /v1/images/pull` (base image) → `POST /v1/builds` → `POST /v1/benches` → poll `GET /v1/benches/<n>` for healthy → write Site row for control-plane on first install, otherwise mark Running. |
+| Start    | `POST /v1/benches/<n>/start`. |
+| Stop     | `POST /v1/benches/<n>/stop?timeout=10`. |
+| Restart  | `POST /v1/benches/<n>/restart`. |
+| Rebuild  | New `Bench Build` → `POST /v1/builds`. On success, swap `current_build`, recreate container (`DELETE` + `POST /v1/benches`). Old image is kept; user can roll back from the UI. |
+| Destroy  | Refuse if non-archived sites exist. `DELETE /v1/benches/<n>`. Leave `host_path` intact (data is precious — user must `rm -rf` manually). |
+| Exec     | "Open Terminal" mints a one-shot token via `POST /v1/terminal-tokens`, the browser opens `wss://.../v1/terminal?token=...` directly to docker-manager through Traefik (Traefik only proxies the websocket; the auth token still gates it). |
 
 ## Healthchecks
 

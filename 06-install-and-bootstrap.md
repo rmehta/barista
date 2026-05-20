@@ -18,16 +18,21 @@ In order — but every step is **a function** with a "skip if already
 done" guard, so re-running is safe.
 
 ```
-1.  preflight()      — OS check, Docker presence, ports free, disk space
-2.  ensure_docker()  — install if missing, start daemon
-3.  ensure_dirs()    — ~/.barista/{data,config,backups}, with 1000:1000 ownership
-4.  write_env()      — generate ~/.barista/.env (passwords, ports), once
-5.  write_compose()  — render ~/.barista/docker-compose.yml from template
-6.  pull_images()    — bench-base, mariadb, redis, traefik
-7.  compose_up()     — bring up barista-mariadb, barista-redis, barista-traefik
-8.  bootstrap_cp()   — build the control-plane bench image, create container,
-                       create barista.localhost site, install barista app
-9.  open_browser()   — print URL; on macOS, `open`; otherwise just print
+1.  preflight()             — OS check, Docker presence, ports free, disk space
+2.  ensure_docker()         — install if missing, start daemon
+3.  ensure_dirs()           — ~/.barista/{data,config,backups,src}, ownership
+4.  write_env()             — generate ~/.barista/.env (passwords, tokens, ports), once
+5.  write_mariadb_conf()    — slow-log enabled my.cnf
+6.  write_traefik_conf()    — static + empty dynamic config
+7.  stage_docker_manager()  — copy docker-manager/ source to ~/.barista/src
+                              (or clone from BARISTA_REPO if running curl|bash)
+8.  write_compose()         — render ~/.barista/docker-compose.yml from template
+9.  compose_up()            — build docker-manager image, pull mariadb/redis/traefik,
+                              `up -d`, wait for MariaDB and docker-manager health
+10. bootstrap_cp()          — create the control-plane bench container (NO docker.sock!),
+                              create barista.localhost site, install barista app,
+                              register-control-plane (writes Bench Host & Site rows)
+11. print_summary()         — print URL + admin password; on macOS, `open`.
 ```
 
 ### Preflight
@@ -54,11 +59,12 @@ Generated **once**, then never overwritten. Contains:
 ```
 BARISTA_VERSION=0.1.0
 BARISTA_MARIADB_ROOT_PASSWORD=<32-byte hex>
-BARISTA_ADMIN_PASSWORD=<32-byte hex>      # initial Barista admin
+BARISTA_ADMIN_PASSWORD=<24-byte hex>        # initial Barista admin
+BARISTA_DOCKER_MANAGER_TOKEN=<32-byte hex>  # auth between control plane and manager
 BARISTA_TIMEZONE=Asia/Kolkata
 BARISTA_HTTP_PORT_RANGE_START=18000
-BARISTA_DOMAIN=barista.localhost           # override for VPS installs
-BARISTA_LETSENCRYPT_EMAIL=                 # only used when domain != *.localhost
+BARISTA_DOMAIN=barista.localhost            # override for VPS installs
+BARISTA_LETSENCRYPT_EMAIL=                  # only used when domain != *.localhost
 BARISTA_DOCKER_NETWORK=barista-net
 ```
 
@@ -114,6 +120,25 @@ services:
       - ${HOME}/.barista/config/traefik:/etc/traefik:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${HOME}/.barista/data/traefik:/data
+
+  docker-manager:
+    container_name: barista-docker-manager
+    build:
+      context: ${HOME}/.barista/src/docker-manager
+    restart: unless-stopped
+    networks: [barista-net]
+    # NO `ports:` — internal Docker network only
+    environment:
+      BARISTA_DOCKER_MANAGER_TOKEN: ${BARISTA_DOCKER_MANAGER_TOKEN}
+      NETWORK: ${BARISTA_DOCKER_NETWORK}
+      BARISTA_DATA_ROOT: /data
+      BARISTA_TRAEFIK_DYNAMIC: /etc/traefik/dynamic.yml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/.barista/data:/data
+      - ${HOME}/.barista/config/traefik:/etc/traefik
+    labels:
+      barista.role: docker-manager
 ```
 
 ### Bootstrapping the control-plane bench
@@ -156,13 +181,14 @@ bootstrap_cp() {
 }
 JSON
 
-  # the long-lived bench container
+  # the long-lived bench container — note: NO docker.sock mount
   docker run -d --name barista-bench-default \
     --network ${BARISTA_DOCKER_NETWORK} \
     -v "$HOME/.barista/data/benches/default:/home/frappe/bench" \
-    -v "/var/run/docker.sock:/var/run/docker.sock" \
     -v "$HOME/.barista/backups:/backups" \
     -p "127.0.0.1:18000:80" \
+    -e BARISTA_DOCKER_MANAGER_URL=http://barista-docker-manager:8080 \
+    -e BARISTA_DOCKER_MANAGER_TOKEN=${BARISTA_DOCKER_MANAGER_TOKEN} \
     --label "barista.role=control-plane" \
     --label "traefik.enable=true" \
     --label "traefik.http.routers.barista.rule=Host(\`${BARISTA_DOMAIN}\`)" \

@@ -157,6 +157,7 @@ ensure_dirs() {
     "$BARISTA_HOME/config/mariadb" \
     "$BARISTA_HOME/config/traefik" \
     "$BARISTA_HOME/backups" \
+    "$BARISTA_HOME/src" \
     "$STATE_DIR" ; do
     run "mkdir -p '$d'"
   done
@@ -180,10 +181,14 @@ write_env() {
   mariadb_pw="$(random_hex 32)"
   barista_pw="$(random_hex 24)"
 
+  local manager_token
+  manager_token="$(random_hex 32)"
+
   cat > "$f" <<EOF
 BARISTA_VERSION=0.1.0
 BARISTA_MARIADB_ROOT_PASSWORD=$mariadb_pw
 BARISTA_ADMIN_PASSWORD=$barista_pw
+BARISTA_DOCKER_MANAGER_TOKEN=$manager_token
 BARISTA_TIMEZONE=$(date +%Z)
 BARISTA_HTTP_PORT_RANGE_START=$PORT_START
 BARISTA_DOMAIN=$DOMAIN
@@ -294,6 +299,26 @@ services:
     volumes:
       - $BARISTA_HOME/data/redis:/data
 
+  docker-manager:
+    container_name: barista-docker-manager
+    image: barista/docker-manager:local
+    build:
+      context: $BARISTA_HOME/src/docker-manager
+    restart: unless-stopped
+    networks: [$NETWORK]
+    # NB: no \`ports:\` — internal network only
+    environment:
+      BARISTA_DOCKER_MANAGER_TOKEN: \${BARISTA_DOCKER_MANAGER_TOKEN}
+      NETWORK: ${NETWORK}
+      BARISTA_DATA_ROOT: /data
+      BARISTA_TRAEFIK_DYNAMIC: /etc/traefik/dynamic.yml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $BARISTA_HOME/data:/data
+      - $BARISTA_HOME/config/traefik:/etc/traefik
+    labels:
+      barista.role: docker-manager
+
 EOF
   if [[ "$NO_TRAEFIK" == "0" ]]; then
     cat >> "$f" <<EOF
@@ -314,23 +339,59 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# Stage docker-manager source for `docker compose build`
+# ---------------------------------------------------------------------------
+
+stage_docker_manager() {
+  # The repo ships the docker-manager source alongside install.sh.
+  # On a curl|bash install, install.sh is alone — pull source from the
+  # repo if it's not next to us.
+  local src_dst="$BARISTA_HOME/src/docker-manager"
+  local here
+  here="$(cd "$(dirname "$0")" && pwd)"
+  if [[ -d "$here/docker-manager" ]]; then
+    run "rsync -a --delete '$here/docker-manager/' '$src_dst/'"
+  else
+    log "Fetching docker-manager source from $BARISTA_REPO"
+    local tmp
+    tmp="$(mktemp -d)"
+    run "git clone --depth 1 --branch $BARISTA_BRANCH $BARISTA_REPO '$tmp'"
+    run "rsync -a --delete '$tmp/docker-manager/' '$src_dst/'"
+    run "rm -rf '$tmp'"
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Pull & start shared services
 # ---------------------------------------------------------------------------
 
 compose_up() {
   run "docker network inspect $NETWORK >/dev/null 2>&1 || docker network create $NETWORK"
-  run "cd '$BARISTA_HOME' && docker compose --env-file .env pull"
+  run "cd '$BARISTA_HOME' && docker compose --env-file .env build docker-manager"
+  run "cd '$BARISTA_HOME' && docker compose --env-file .env pull --ignore-pull-failures || true"
   run "cd '$BARISTA_HOME' && docker compose --env-file .env up -d"
   # wait for MariaDB
   log "Waiting for MariaDB to be ready"
   for i in $(seq 1 60); do
     if docker exec barista-mariadb sh -lc 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "SELECT 1"' >/dev/null 2>&1; then
       ok "MariaDB ready"
+      break
+    fi
+    sleep 1
+    [[ $i == 60 ]] && die "MariaDB did not become ready in 60s"
+  done
+
+  log "Waiting for docker-manager to be ready"
+  for i in $(seq 1 30); do
+    if docker exec barista-docker-manager \
+       curl -fsS -H "X-Auth-Token: $BARISTA_DOCKER_MANAGER_TOKEN" \
+            http://localhost:8080/v1/health >/dev/null 2>&1; then
+      ok "docker-manager ready"
       return 0
     fi
     sleep 1
   done
-  die "MariaDB did not become ready in 60s"
+  die "docker-manager did not become ready in 30s"
 }
 
 # ---------------------------------------------------------------------------
@@ -383,10 +444,11 @@ JSON
       --network $NETWORK \
       --restart unless-stopped \
       -v '$bench_dir':/home/frappe/bench \
-      -v /var/run/docker.sock:/var/run/docker.sock \
       -v '$BARISTA_HOME/backups':/backups \
       -v '$BARISTA_HOME/data/mariadb-logs/slow.log':/slow.log:ro \
       -p 127.0.0.1:${PORT_START}:80 \
+      -e BARISTA_DOCKER_MANAGER_URL=http://barista-docker-manager:8080 \
+      -e BARISTA_DOCKER_MANAGER_TOKEN=${BARISTA_DOCKER_MANAGER_TOKEN} \
       --label barista.role=control-plane \
       $extra_labels \
       $BASE_IMAGE \
@@ -492,13 +554,14 @@ esac
 
 mkdir -p "$STATE_DIR"
 
-step "preflight"           preflight
-step "ensure_dirs"         ensure_dirs
-step "write_env"           write_env
-step "write_mariadb_conf"  write_mariadb_conf
-step "write_traefik_conf"  write_traefik_conf
-step "write_compose"       write_compose
-step "compose_up"          compose_up
-step "bootstrap_cp"        bootstrap_cp
+step "preflight"            preflight
+step "ensure_dirs"          ensure_dirs
+step "write_env"            write_env
+step "write_mariadb_conf"   write_mariadb_conf
+step "write_traefik_conf"   write_traefik_conf
+step "stage_docker_manager" stage_docker_manager
+step "write_compose"        write_compose
+step "compose_up"           compose_up
+step "bootstrap_cp"         bootstrap_cp
 
 print_summary
