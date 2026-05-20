@@ -1,44 +1,20 @@
-"""Tests for the Python installer (install.py).
+"""Tests for the Python installer.
 
-Stdlib-only, no external deps. Loads `install.py` from the repo root
-via importlib because the file lives outside the `barista/` package
-(it has to, so curl|python3 works).
+Stdlib-only, no external deps. Imports the `installer/` package
+directly — post-refactor, `install.py` at the repo root is just a
+thin bootstrap and the real code lives here as a package.
 """
 
 from __future__ import annotations
 
-import importlib.util
 import io
 import subprocess
 import sys
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-# ---------------------------------------------------------------------------
-# Import install.py from the repo root. We walk up the tree to find it,
-# so the test file can move without breaking.
-# ---------------------------------------------------------------------------
-
-def _find_install_py() -> Path:
-    """The installer script lives at the repo root next to pyproject.toml.
-
-    There's also a `barista/install.py` (the Frappe install hook) — we
-    must skip past that and only return the repo-root one.
-    """
-    for parent in Path(__file__).resolve().parents:
-        candidate = parent / "install.py"
-        if candidate.exists() and (parent / "pyproject.toml").exists():
-            return candidate
-    raise RuntimeError("install.py not found at repo root")
-
-
-_spec = importlib.util.spec_from_file_location("install", _find_install_py())
-install = importlib.util.module_from_spec(_spec)
-sys.modules["install"] = install
-_spec.loader.exec_module(install)
-
+import installer as install  # kept as `install` so the test reads naturally
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -243,7 +219,10 @@ class TestEnsureDirs:
 
 class TestWriteEnv:
     def test_creates_env_file_with_secrets(self, installer, monkeypatch):
-        monkeypatch.setattr(install, "random_hex",
+        # Installer.write_env reads random_hex through the secrets
+        # submodule (so tests can patch it here without rebinding
+        # imports in every caller).
+        monkeypatch.setattr(install.secrets, "random_hex",
                              lambda n=16: "x" * n)
         installer.ensure_dirs()
         installer.write_env()
@@ -409,16 +388,16 @@ class TestParseEnvFile:
     def test_parses_lines(self, tmp_path):
         f = tmp_path / "env"
         f.write_text("FOO=bar\n# comment\n\nBAZ=qux\n")
-        out = install._parse_env_file(f)
+        out = install.parse_env_file(f)
         assert out == {"FOO": "bar", "BAZ": "qux"}
 
     def test_missing_file_returns_empty(self, tmp_path):
-        assert install._parse_env_file(tmp_path / "nope") == {}
+        assert install.parse_env_file(tmp_path / "nope") == {}
 
     def test_handles_equals_in_value(self, tmp_path):
         f = tmp_path / "env"
         f.write_text("URL=http://x?y=z\n")
-        assert install._parse_env_file(f) == {"URL": "http://x?y=z"}
+        assert install.parse_env_file(f) == {"URL": "http://x?y=z"}
 
 
 # ===========================================================================

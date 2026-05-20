@@ -22,11 +22,11 @@ def test_dockerfile_does_not_drop_to_manager_before_entrypoint():
     Drop is done by `su` inside the entrypoint instead.
     """
     lines = _dockerfile_lines()
-    entry_idx = next(i for i, l in enumerate(lines)
-                     if l.strip().startswith("ENTRYPOINT"))
+    entry_idx = next(i for i, ln in enumerate(lines)
+                     if ln.strip().startswith("ENTRYPOINT"))
     pre_entry = lines[:entry_idx]
-    user_lines = [l for l in pre_entry if l.strip().startswith("USER ")]
-    assert not any("manager" in l for l in user_lines), (
+    user_lines = [ln for ln in pre_entry if ln.strip().startswith("USER ")]
+    assert not any("manager" in ln for ln in user_lines), (
         "Dockerfile must NOT drop to USER manager before ENTRYPOINT; "
         "entrypoint.sh needs to run as root to add the manager user "
         "to the host docker group."
