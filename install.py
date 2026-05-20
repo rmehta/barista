@@ -683,6 +683,14 @@ class Installer:
 
     def _init_bench(self, bench_dir: Path) -> None:
         self.log.log("Initialising control-plane bench (one-time, ~3 min)")
+        # The bench container runs as uid 1000 (`frappe`); make sure
+        # the bind-mount target is writable for that uid before we
+        # mount it. (If we don't pre-create it, docker creates it as
+        # root when binding and the frappe user can't write.)
+        bench_dir.mkdir(parents=True, exist_ok=True)
+        if sys.platform == "linux":
+            subprocess.run(["chown", "1000:1000", str(bench_dir)],
+                           check=False)
         self.docker.run(["docker", "pull", self.cfg.base_image])
         self.docker.run([
             "docker", "run", "--rm",
