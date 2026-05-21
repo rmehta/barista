@@ -11,6 +11,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import utils  # accessed as utils.detect_public_ip so tests can monkeypatch
 from .constants import (
     DEFAULTS_BASE_IMAGE,
     DEFAULTS_BRANCH,
@@ -80,7 +81,7 @@ class Config:
         return cls(
             mode=("purge" if args.mode_purge else
                   "uninstall" if args.mode_uninstall else "install"),
-            domain=args.domain,
+            domain=_resolve_default_domain(args.domain),
             email=args.email,
             port_start=args.port_start,
             no_traefik=args.no_traefik,
@@ -91,12 +92,36 @@ class Config:
         )
 
 
+def _resolve_default_domain(explicit: str | None) -> str:
+    """Pick the install's domain.
+
+    - `--domain` set by the user → use it verbatim, no surprises.
+    - Otherwise try to look up the server's public IPv4 and use
+      `<ip>.nip.io`, which any client on the open web can resolve
+      back to this host with no DNS configuration on the user's
+      part. Free service, nothing to set up.
+    - Detection failure (offline laptop, blocked egress, RFC 1918
+      behind NAT) → fall back to `barista.localhost` so a local-only
+      install still works.
+    """
+    if explicit:
+        return explicit
+    ip = utils.detect_public_ip()
+    return f"{ip}.nip.io" if ip else DEFAULTS_DOMAIN
+
+
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="install.py",
         description="Install Barista on this host.",
     )
-    p.add_argument("--domain", default=DEFAULTS_DOMAIN)
+    p.add_argument(
+        "--domain", default=None,
+        help="Hostname Barista is served at. Defaults to `<public-ip>.nip.io` "
+              "so the install is reachable from the open web with no DNS "
+              "setup; falls back to `barista.localhost` if no public IP "
+              "can be detected.",
+    )
     p.add_argument("--email", default="")
     p.add_argument("--port-start", type=int, default=DEFAULTS_PORT_START)
     p.add_argument("--no-traefik", action="store_true")

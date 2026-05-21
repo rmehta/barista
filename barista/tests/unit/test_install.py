@@ -66,13 +66,34 @@ def installer(cfg, quiet_logger, fake_docker):
 # ===========================================================================
 
 class TestConfig:
-    def test_defaults(self):
+    def test_defaults(self, monkeypatch):
+        # No IP detected → fall back to the static localhost default.
+        monkeypatch.setattr(install.utils, "detect_public_ip", lambda: None)
         c = install.Config.from_argv([])
         assert c.mode == "install"
         assert c.domain == install.DEFAULTS_DOMAIN
         assert c.port_start == install.DEFAULTS_PORT_START
         assert c.dry_run is False
         assert c.no_traefik is False
+
+    def test_default_domain_uses_nip_io_when_public_ip_detected(self, monkeypatch):
+        """The whole point of nip.io: open-web access with no DNS setup."""
+        monkeypatch.setattr(install.utils, "detect_public_ip", lambda: "203.0.113.42")
+        c = install.Config.from_argv([])
+        assert c.domain == "203.0.113.42.nip.io"
+
+    def test_default_domain_falls_back_when_offline(self, monkeypatch):
+        monkeypatch.setattr(install.utils, "detect_public_ip", lambda: None)
+        c = install.Config.from_argv([])
+        assert c.domain == install.DEFAULTS_DOMAIN
+
+    def test_explicit_domain_skips_ip_detection(self, monkeypatch):
+        """An explicit --domain must win and must NOT trigger a network call."""
+        def _boom():
+            raise AssertionError("detect_public_ip called despite explicit --domain")
+        monkeypatch.setattr(install.utils, "detect_public_ip", _boom)
+        c = install.Config.from_argv(["--domain", "shop.example.com"])
+        assert c.domain == "shop.example.com"
 
     def test_flags_parsed(self):
         c = install.Config.from_argv([

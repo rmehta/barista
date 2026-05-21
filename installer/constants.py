@@ -11,6 +11,11 @@ DEFAULTS_BASE_IMAGE = "frappe/bench:latest"   # https://hub.docker.com/r/frappe/
 
 # --- networking ---
 DEFAULTS_NETWORK = "barista-net"
+# Fallback domain when public-IP detection fails (offline laptop,
+# behind NAT with no public IP, etc.). At install time we try to
+# resolve a real public IPv4 and use `<ip>.nip.io` instead so the
+# site is reachable from the open web with no DNS setup. See
+# `utils.detect_public_ip` and `Config.from_argv`.
 DEFAULTS_DOMAIN = "barista.localhost"
 DEFAULTS_PORT_START = 18000
 BENCH_INTERNAL_PORT = 8000     # bench's default gunicorn port

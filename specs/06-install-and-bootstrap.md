@@ -74,7 +74,7 @@ class Config:
     barista_home: Path = …          # ~/.barista by default
     repo: str = "https://github.com/rmehta/barista"
     branch: str = "main"
-    domain: str = "barista.localhost"
+    domain: str = "<public-ip>.nip.io"  # falls back to barista.localhost
     email: str = ""
     port_start: int = 18000
     no_traefik: bool = False
@@ -96,7 +96,7 @@ BARISTA_ADMIN_PASSWORD=<24-byte hex>        # initial Barista admin
 BARISTA_DOCKER_MANAGER_TOKEN=<32-byte hex>  # internal auth
 BARISTA_TIMEZONE=Asia/Kolkata
 BARISTA_HTTP_PORT_RANGE_START=18000
-BARISTA_DOMAIN=barista.localhost
+BARISTA_DOMAIN=<public-ip>.nip.io
 BARISTA_LETSENCRYPT_EMAIL=
 BARISTA_DOCKER_NETWORK=barista-net
 ```
@@ -142,11 +142,27 @@ NOT have `/var/run/docker.sock` bind-mounted** — that's the whole
 point of the `barista-docker-manager` split (see
 [09-docker-manager.md](09-docker-manager.md)).
 
+## Default domain
+
+If `--domain` is not passed the installer looks up the host's public
+IPv4 (api.ipify.org and friends, 2-second timeout, fail-closed) and
+defaults the domain to `<ip>.nip.io`. nip.io is a wildcard DNS
+service that resolves any `<ip>.nip.io` back to `<ip>` — so the
+install is reachable from the open web with zero DNS configuration.
+If detection fails (offline, blocked egress, RFC 1918 behind NAT) we
+fall back to `barista.localhost` and the install only works from the
+host itself.
+
+Override with `--domain shop.example.com` for a real DNS name. Add
+`--email ops@example.com` to also enable Let's Encrypt — Traefik
+will request a cert (works for both real domains and nip.io
+subdomains).
+
 ## Flags `install.py` accepts
 
 ```
---domain <hostname>    use a real domain (turns on Let's Encrypt if --email is set)
---email  <addr>        Let's Encrypt contact email
+--domain <hostname>    override the auto-detected `<ip>.nip.io` default
+--email  <addr>        Let's Encrypt contact email (enables HTTPS)
 --port-start <n>       start of HTTP port range; default 18000
 --no-traefik           skip traefik; you'll proxy in your own nginx/caddy
 --interactive          prompt before destructive actions
@@ -162,7 +178,8 @@ typed `PURGE` confirmation when `--interactive` is on.
 
 ## First-run wizard (in the UI)
 
-When the user opens `https://barista.localhost/barista` for the first
+When the user opens `http://<public-ip>.nip.io/barista` (or whatever
+`--domain` was set to) for the first
 time, they hit a wizard backed by `Onboarding Status (Single)`:
 
 ```

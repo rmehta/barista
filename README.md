@@ -31,11 +31,17 @@ starts:
 - `barista-docker-manager` — the privileged microservice (on the
   internal `barista-net` network only)
 - `barista-bench-default` — your first bench container, with the
-  `barista.localhost` control-plane site inside it
+  control-plane site inside it
 
-Open the URL the script prints (typically `http://barista.localhost/barista`),
-sign in as `Administrator` with the password it just generated, and
-you'll see your bench + control-plane site already listed.
+The installer auto-detects the host's public IPv4 and defaults the
+site domain to `<ip>.nip.io` (e.g. `64.227.182.89.nip.io`), so the
+install is reachable from the open web with zero DNS setup. It falls
+back to `barista.localhost` if there's no public IP visible (offline
+laptop, behind NAT).
+
+Open the URL the script prints, sign in as `Administrator` with the
+password it just generated, and you'll see your bench + control-plane
+site already listed.
 
 Re-running the installer is safe; each step writes a marker under
 `~/.barista/.state/` and is skipped on the next run.
@@ -44,6 +50,7 @@ Re-running the installer is safe; each step writes a marker under
 
 ```bash
 ./install.py --domain shop.example.com --email ops@example.com   # real domain + LE TLS
+./install.py --email ops@example.com                              # HTTPS on the nip.io default
 ./install.py --no-traefik                                         # use your own proxy
 ./install.py --dry-run                                            # print, don't change
 ./install.py --uninstall                                          # stop containers, keep data
