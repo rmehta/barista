@@ -141,7 +141,12 @@ class Templates:
                 "",
                 "  traefik:",
                 "    container_name: barista-traefik",
-                "    image: traefik:v3.1",
+                # v3.7 is the first tag with a Docker client new enough
+                # to talk to Docker 28+ daemons. Earlier (3.1) shipped
+                # an API-1.24 client and just spammed
+                # `client version 1.24 is too old` until the box fell
+                # over; routes were never installed.
+                "    image: traefik:v3.7",
                 "    restart: unless-stopped",
                 f"    networks: [{network}]",
                 "    ports:",

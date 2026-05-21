@@ -5,7 +5,11 @@ import secrets
 import frappe
 from frappe.model.document import Document
 
-_NAME_RX = re.compile(r"^[a-z][a-z0-9.-]{2,63}$")
+# RFC 1123 hostname-ish. Allows digit-leading labels so IP-based
+# nip.io names like `64.227.182.89.nip.io` (our zero-DNS default)
+# validate; still rejects underscores, uppercase, leading/trailing
+# dots, and the empty string.
+_NAME_RX = re.compile(r"^[a-z0-9][a-z0-9.-]{2,63}$")
 
 
 class Site(Document):

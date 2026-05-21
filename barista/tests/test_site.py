@@ -40,6 +40,19 @@ class TestSite(FrappeTestCase):
                 "bench": "test-bench",
             }).insert(ignore_permissions=True)
 
+    def test_digit_leading_nip_io_name_accepted(self):
+        """`<ip>.nip.io` is the default control-plane domain when a
+        public IP is detected at install time — it starts with a
+        digit, which the validator must not reject (RFC 1123 allows
+        digit-leading hostname labels)."""
+        site = frappe.get_doc({
+            "doctype": "Site",
+            "site_name": "64.227.182.89.nip.io",
+            "bench": "test-bench",
+            "status": "Active",
+        }).insert(ignore_permissions=True)
+        self.assertTrue(site.db_name.startswith("_"))
+
     def test_control_plane_cannot_be_deleted(self):
         cp = frappe.get_doc({
             "doctype": "Site",
