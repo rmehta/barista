@@ -113,20 +113,31 @@ class Bench:
     def _bench_init_cmd() -> str:
         """The bash one-liner the init container runs.
 
-        `bench init` bakes absolute paths into the venv (shebangs in
-        env/bin/*, executable= in env/pyvenv.cfg). We init at /tmp/b
-        and move to /work, then the long-lived container mounts the
-        same files at /home/frappe/bench — so we have to rewrite
-        those paths or pip is unrunnable.
+        `bench init` bakes absolute /tmp/b paths into the venv in
+        multiple places:
+
+          - shebangs in env/bin/*
+          - executable= in env/pyvenv.cfg
+          - editable-install pointers in env/lib/.../site-packages/*.pth
+            (e.g. frappe.pth → /tmp/b/apps/frappe)
+          - PEP 660 metadata in .dist-info/direct_url.json
+
+        Once we move to /work and the long-lived container mounts at
+        /home/frappe/bench, every one of these becomes a dangling
+        reference. The visible symptom is `import frappe` failing
+        with ModuleNotFoundError because frappe.pth still points at
+        the throw-away init dir.
+
+        `grep -rlIZ` lists text files containing the prefix
+        (`-I` skips binary files, including .pyc which embed the
+        source path harmlessly); `xargs -0 sed` rewrites them all.
         """
-        target = f"{BENCH_RUNTIME_PATH}/env"
         return (
             "cd /tmp && bench init --skip-redis-config-generation "
             "--frappe-branch version-15 b && "
             "shopt -s dotglob && mv /tmp/b/* /work/ && "
-            "find /work/env/bin -type f -exec "
-            rf"sed -i 's|/tmp/b/env|{target}|g' " + "{} + && "
-            rf"sed -i 's|/tmp/b/env|{target}|g' /work/env/pyvenv.cfg"
+            "grep -rlIZ /tmp/b /work | "
+            f"xargs -0 -r sed -i 's|/tmp/b|{BENCH_RUNTIME_PATH}|g'"
         )
 
     # ----- step 2: common_site_config.json ---------------------------------

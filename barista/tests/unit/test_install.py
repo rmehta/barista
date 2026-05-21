@@ -439,14 +439,18 @@ class TestBench:
         assert installer.bench.name == install.BENCH_CONTAINER_NAME
         assert installer.bench.name == "barista-bench-default"
 
-    def test_init_cmd_rewrites_venv_shebangs(self):
+    def test_init_cmd_rewrites_venv_paths(self):
         cmd = install.Bench._bench_init_cmd()
-        # the move target is /home/frappe/bench/env, so the sed must
-        # rewrite the throw-away /tmp/b/env path to that
-        assert "/tmp/b/env" in cmd
-        assert install.BENCH_RUNTIME_PATH + "/env" in cmd
-        assert "find /work/env/bin" in cmd
-        assert "/work/env/pyvenv.cfg" in cmd
+        # Throw-away init dir is /tmp/b; rewritten to the runtime mount
+        # path so the venv (shebangs, pyvenv.cfg, *.pth, direct_url.json)
+        # all keep working after the move.
+        assert "/tmp/b" in cmd
+        assert install.BENCH_RUNTIME_PATH in cmd
+        # Single grep -rl + xargs sed sweeps every text file under /work,
+        # which is what covers the .pth / direct_url.json case (regression
+        # for the ModuleNotFoundError on `import frappe`).
+        assert "grep -rlIZ /tmp/b /work" in cmd
+        assert "sed -i" in cmd
 
     def test_traefik_labels_off_with_no_traefik(self, tmp_path, quiet_logger,
                                                   fake_docker):
