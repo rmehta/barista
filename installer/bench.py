@@ -36,9 +36,7 @@ from .constants import (
     BENCH_RUNTIME_PATH,
 )
 from .docker import Docker
-from .env_file import parse_env_file
-from .errors import InstallerError
-from .logger import Logger
+from .utils import InstallerError, Logger, parse_env_file
 
 
 class Bench:

@@ -6,12 +6,12 @@ Two ways this runs:
   1. From a git checkout:
        ./install.py [...flags...]
      The `installer/` package sits next to install.py, so we just
-     `python -m installer` from this directory.
+     `python -m installer.cli` from this directory.
 
   2. From a one-liner:
        curl -fsSL https://raw.githubusercontent.com/rmehta/barista/main/install.py | python3 -
      `__file__` resolves to <stdin>, so we git-clone the repo to a
-     temp dir and re-exec `python -m installer` from there.
+     temp dir and re-exec `python -m installer.cli` from there.
 
 Either path lands in `installer/cli.py:main`. Read that file (and
 the rest of `installer/`) for the actual install logic — this file
@@ -67,7 +67,7 @@ def main() -> int:
         str(root) + os.pathsep + env.get("PYTHONPATH", "")
     ).rstrip(os.pathsep)
     return subprocess.call(
-        [sys.executable, "-m", "installer", *sys.argv[1:]],
+        [sys.executable, "-m", "installer.cli", *sys.argv[1:]],
         cwd=str(root),
         env=env,
     )

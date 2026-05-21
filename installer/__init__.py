@@ -4,27 +4,24 @@ Layout:
 
   installer/
   ├── __init__.py    # re-exports + version
-  ├── __main__.py    # `python -m installer` entry point
   ├── constants.py   # tunable defaults + magic numbers
-  ├── errors.py      # InstallerError
-  ├── logger.py      # pretty terminal output
-  ├── secrets.py     # random_hex
-  ├── env_file.py    # read/write key=value files
+  ├── utils.py       # InstallerError, Logger, random_hex, parse_env_file
   ├── docker.py      # thin `docker` CLI wrapper
   ├── runner.py      # StepRunner: ordered, marker-gated steps
   ├── config.py      # Config dataclass + argparse
   ├── templates.py   # config-file rendering (pure functions)
-  ├── installer.py   # Installer class with one method per install step
-  └── cli.py         # main() — wires everything together
+  ├── bench.py       # Bench class: the control-plane bench container
+  ├── installer.py   # Installer class: one method per install step
+  └── cli.py         # main() — wires everything together; also the
+                     #          `python -m installer.cli` entry point
 
-Each file is small enough to read in one screen. The Installer class
-is the biggest (~400 lines) because every step lives there as a
-method, which makes them easy to test in isolation.
+Each file fits on a screen-and-a-half except installer.py and
+bench.py (which hold one method per install sub-step — splitting
+them further would just hide the install sequence).
 """
 
-from . import secrets  # noqa: F401 — exposed for monkeypatching in tests
+from . import utils  # noqa: F401 — exposed for monkeypatching in tests
 from .bench import Bench
-from .cli import build_install_steps, main
 from .config import Config
 from .constants import (
     BENCH_CONTAINER_NAME,
@@ -39,13 +36,10 @@ from .constants import (
     __version__,
 )
 from .docker import Docker
-from .env_file import parse_env_file
-from .errors import InstallerError
 from .installer import Installer
-from .logger import Logger
 from .runner import StepRunner
-from .secrets import random_hex
 from .templates import Templates
+from .utils import InstallerError, Logger, parse_env_file, random_hex
 
 __all__ = [
     "BENCH_CONTAINER_NAME",
@@ -66,9 +60,7 @@ __all__ = [
     "StepRunner",
     "Templates",
     "__version__",
-    "build_install_steps",
-    "main",
     "parse_env_file",
     "random_hex",
-    "secrets",
+    "utils",
 ]

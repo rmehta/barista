@@ -31,7 +31,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import secrets  # accessed as secrets.random_hex so tests can monkeypatch
+from . import utils  # accessed as utils.random_hex so tests can monkeypatch
 from .bench import Bench
 from .config import Config
 from .constants import (
@@ -40,10 +40,8 @@ from .constants import (
     MIN_FREE_GB,
 )
 from .docker import Docker
-from .env_file import parse_env_file
-from .errors import InstallerError
-from .logger import Logger
 from .templates import Templates
+from .utils import InstallerError, Logger, parse_env_file
 
 
 class Installer:
@@ -130,9 +128,9 @@ class Installer:
             self.log.ok(".env exists, leaving it alone")
             return
         contents = Templates.env_file(
-            mariadb_pw=secrets.random_hex(32),
-            barista_pw=secrets.random_hex(24),
-            manager_token=secrets.random_hex(32),
+            mariadb_pw=utils.random_hex(32),
+            barista_pw=utils.random_hex(24),
+            manager_token=utils.random_hex(32),
             timezone=time.tzname[0],
             port_start=self.cfg.port_start,
             domain=self.cfg.domain,

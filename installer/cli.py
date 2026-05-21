@@ -1,7 +1,12 @@
-"""`main()` — entry point used by `python -m installer` and install.py.
+"""`main()` — entry point used by `python -m installer.cli`.
 
 Wires Config + Logger + Installer + StepRunner together. Holds the
 list of steps that defines an install run.
+
+install.py at the repo root invokes this module as
+    python -m installer.cli ...
+so this file is the only entry point — there's deliberately no
+`installer/__main__.py`.
 """
 
 from __future__ import annotations
@@ -10,10 +15,9 @@ import sys
 from collections.abc import Callable
 
 from .config import Config
-from .errors import InstallerError
 from .installer import Installer
-from .logger import Logger
 from .runner import StepRunner
+from .utils import InstallerError, Logger
 
 
 def build_install_steps(installer: Installer) -> list[tuple[str, Callable[[], None]]]:
@@ -55,3 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     except InstallerError as e:
         logger.err(str(e))
         return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

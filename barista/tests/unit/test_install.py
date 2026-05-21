@@ -15,6 +15,8 @@ from unittest.mock import MagicMock
 import pytest
 
 import installer as install  # kept as `install` so the test reads naturally
+from installer.cli import build_install_steps
+from installer.cli import main as cli_main
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -219,10 +221,10 @@ class TestEnsureDirs:
 
 class TestWriteEnv:
     def test_creates_env_file_with_secrets(self, installer, monkeypatch):
-        # Installer.write_env reads random_hex through the secrets
+        # Installer.write_env reads random_hex through the utils
         # submodule (so tests can patch it here without rebinding
         # imports in every caller).
-        monkeypatch.setattr(install.secrets, "random_hex",
+        monkeypatch.setattr(install.utils, "random_hex",
                              lambda n=16: "x" * n)
         installer.ensure_dirs()
         installer.write_env()
@@ -367,7 +369,7 @@ class TestStepRunner:
 class TestMain:
     def test_help_exits_zero(self):
         with pytest.raises(SystemExit) as ei:
-            install.main(["--help"])
+            cli_main(["--help"])
         assert ei.value.code == 0
 
     def test_uninstall_runs_uninstall_only(self, tmp_path, monkeypatch):
@@ -375,7 +377,7 @@ class TestMain:
         called = []
         monkeypatch.setattr(install.Installer, "uninstall",
                              lambda self: called.append("uninstall"))
-        rc = install.main(["--uninstall"])
+        rc = cli_main(["--uninstall"])
         assert rc == 0
         assert called == ["uninstall"]
 
@@ -406,7 +408,7 @@ class TestParseEnvFile:
 
 class TestStepOrder:
     def test_step_order_is_stable(self, installer):
-        steps = install.build_install_steps(installer)
+        steps = build_install_steps(installer)
         names = [s[0] for s in steps]
         assert names == [
             "preflight",
