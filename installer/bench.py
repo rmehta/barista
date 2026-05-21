@@ -71,6 +71,13 @@ class Bench:
         if not sites_dir.exists():
             self._init()
             self._write_common_site_config(sites_dir)
+            # We just (re)created the host bench dir. A pre-existing
+            # container with this name still has its bind-mount pinned
+            # to the *previous* inode, so it sees an empty/dangling
+            # /home/frappe/bench and any `bench` command in it dies
+            # with FileNotFoundError from os.getcwd(). Force-remove
+            # here so the keep-alive step below makes a fresh one.
+            self.docker.run(["docker", "rm", "-f", self.name], check=False)
 
         if not self.docker.container_running(self.name):
             self._run_keep_alive()

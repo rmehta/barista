@@ -477,3 +477,62 @@ class TestBench:
         bench = install.Bench(cfg, quiet_logger, fake_docker)
         labels = bench._traefik_labels(env={"BARISTA_DOMAIN": "barista.localhost"})
         assert not any("certresolver" in lbl for lbl in labels)
+
+    def test_bootstrap_force_removes_stale_container_after_init(
+        self, tmp_path, quiet_logger, fake_docker, monkeypatch,
+    ):
+        """If we just (re)created the host bench dir, any pre-existing
+        container with the bench name has a stale bind-mount pointing at
+        the previous inode — so bootstrap() must force-remove it before
+        the keep-alive step, otherwise `docker exec ... bench …` runs
+        against an empty mount and dies with FileNotFoundError.
+        """
+        cfg = install.Config(barista_home=tmp_path / "h", domain="test.localhost")
+        cfg.barista_home.mkdir()
+        cfg.env_file.write_text(
+            "BARISTA_DOMAIN=test.localhost\n"
+            "BARISTA_ADMIN_PASSWORD=x\n"
+            "BARISTA_MARIADB_ROOT_PASSWORD=y\n"
+            "BARISTA_DOCKER_MANAGER_TOKEN=t\n"
+            "BARISTA_HTTP_PORT_RANGE_START=19000\n"
+        )
+        bench = install.Bench(cfg, quiet_logger, fake_docker)
+
+        # Pretend the previous keep-alive container is still up but the
+        # host bench dir is fresh (sites/ does not exist).
+        fake_docker.container_running.return_value = True
+        monkeypatch.setattr(bench, "_init", MagicMock())
+        monkeypatch.setattr(bench, "_install_barista_app", MagicMock())
+        monkeypatch.setattr(bench, "_app_present", lambda: True)
+        monkeypatch.setattr(bench, "_site_present", lambda: True)
+        monkeypatch.setattr(bench, "_ensure_serving", MagicMock())
+
+        bench.bootstrap()
+
+        # The stale container must have been force-removed.
+        rm_calls = [c.args[0] for c in fake_docker.run.call_args_list
+                     if c.args[0][:3] == ["docker", "rm", "-f"]]
+        assert ["docker", "rm", "-f", bench.name] in rm_calls
+
+    def test_bootstrap_skips_rm_when_bench_dir_already_populated(
+        self, tmp_path, quiet_logger, fake_docker, monkeypatch,
+    ):
+        """Conversely, a normal re-run (sites/ already exists) must NOT
+        rip the running keep-alive container out from under us."""
+        cfg = install.Config(barista_home=tmp_path / "h")
+        cfg.barista_home.mkdir()
+        cfg.env_file.write_text("BARISTA_DOMAIN=test.localhost\n")
+        bench = install.Bench(cfg, quiet_logger, fake_docker)
+        bench.dir.mkdir(parents=True, exist_ok=True)
+        (bench.dir / "sites").mkdir()  # pretend bench is already initialised
+
+        fake_docker.container_running.return_value = True
+        monkeypatch.setattr(bench, "_app_present", lambda: True)
+        monkeypatch.setattr(bench, "_site_present", lambda: True)
+        monkeypatch.setattr(bench, "_ensure_serving", MagicMock())
+
+        bench.bootstrap()
+
+        rm_calls = [c.args[0] for c in fake_docker.run.call_args_list
+                     if c.args[0][:3] == ["docker", "rm", "-f"]]
+        assert rm_calls == []
